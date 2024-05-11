@@ -6,6 +6,8 @@ import com.userservice.UserService.models.SessionStatus;
 import com.userservice.UserService.models.User;
 import com.userservice.UserService.repositiories.SessionRepository;
 import com.userservice.UserService.repositiories.UserRepository;
+import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.security.MacAlgorithm;
 import org.apache.commons.lang3.RandomStringUtils;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -15,15 +17,18 @@ import org.springframework.stereotype.Component;
 import org.springframework.stereotype.Service;
 import org.springframework.util.MultiValueMapAdapter;
 
-import java.util.HashMap;
-import java.util.Optional;
+import javax.crypto.SecretKey;
+import java.nio.charset.StandardCharsets;
+import java.time.LocalDate;
+import java.util.*;
 
 @Service
 public class AuthServiceImpl implements AuthService {
 
     private final UserRepository userRepository;
     private final SessionRepository sessionRepository;
-   private final BCryptPasswordEncoder bCryptPasswordEncoder;
+    private final BCryptPasswordEncoder bCryptPasswordEncoder;
+
     public AuthServiceImpl(UserRepository userRepository,
                            SessionRepository sessionRepository,
                            BCryptPasswordEncoder bCryptPasswordEncoder) {
@@ -47,18 +52,40 @@ public class AuthServiceImpl implements AuthService {
             return null;
         }
 
-        String token = RandomStringUtils.randomAlphanumeric(30);
+        List<Optional<Session>> activeSessionList = sessionRepository.findAllBySession_StatusAndUser_ID(SessionStatus.ACTIVE, user.getId());
+
+        try {
+            if (!activeSessionList.isEmpty() && activeSessionList.size() >= 2) {
+                throw new RuntimeException("No more sessions allowed.");
+            }
+        } catch (Exception ex) {
+            System.out.println(ex.getMessage());
+            return null;
+        }
+
+
+//========================================using jwt token============================================
+        MacAlgorithm alg = Jwts.SIG.HS512; //or HS384 or HS256
+        SecretKey key = alg.key().build();
+
+        Map<String, Object> jsonMap = new HashMap<>();
+        jsonMap.put("email", user.getEmail());
+        jsonMap.put("roles", List.of(user.getRoles()));
+
+        String jws = Jwts.builder().claims(jsonMap).signWith(key, alg).compact();
+
         Session session = new Session();
         session.setSessionStatus(SessionStatus.ACTIVE);
         session.setUser(user);
-        session.setToken(token);
+        session.setToken(jws);
+        session.setExpiringAt(LocalDate.now().plusMonths(1));
         sessionRepository.save(session);
 
         UserDto userDto = UserDto.from(user);
 
 
         MultiValueMapAdapter<String, String> headers = new MultiValueMapAdapter<>(new HashMap<>());
-        headers.add(HttpHeaders.SET_COOKIE, "auth-token:" + token);
+        headers.add(HttpHeaders.SET_COOKIE, "auth-token:" + jws);
 
         ResponseEntity<UserDto> response = new ResponseEntity<>(userDto, headers, HttpStatus.OK);
         return response;

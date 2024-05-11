@@ -7,6 +7,7 @@ import jakarta.persistence.ManyToOne;
 import lombok.Getter;
 import lombok.Setter;
 
+import java.time.LocalDate;
 import java.util.Date;
 
 @Getter
@@ -14,7 +15,7 @@ import java.util.Date;
 @Entity
 public class Session extends Base{
     private String token;
-    private Date expiringAt;
+    private LocalDate expiringAt;
     @ManyToOne
     private User user;
     @Enumerated(EnumType.ORDINAL)
