@@ -132,6 +132,16 @@ public class AuthServiceImpl implements AuthService {
             return null;
         }
 
+        Session session = optionalSession.get();
+
+        if (!session.getSessionStatus().equals(SessionStatus.ACTIVE)) {
+            return null;
+        }
+
+        if (session.getExpiringAt().isBefore(LocalDate.now())) {
+            return null;
+        }
+
         return SessionStatus.ACTIVE;
     }
 }
