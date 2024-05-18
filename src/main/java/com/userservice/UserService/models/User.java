@@ -1,5 +1,7 @@
 package com.userservice.UserService.models;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import jakarta.persistence.Entity;
 import jakarta.persistence.ManyToMany;
 import lombok.Getter;
@@ -11,9 +13,11 @@ import java.util.Set;
 @Getter
 @Setter
 @Entity
+@JsonDeserialize(as=User.class)
 public class User extends Base {
     private String email;
     private String password;
-    @ManyToMany
+    @ManyToMany(fetch = jakarta.persistence.FetchType.EAGER)
+    @JsonIgnore
     private Set<Role> roles = new HashSet<>();
 }
